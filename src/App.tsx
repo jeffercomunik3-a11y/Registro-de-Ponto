@@ -133,6 +133,7 @@ export default function App() {
   const [newEmpRole, setNewEmpRole] = useState('');
   const [newEmpCpf, setNewEmpCpf] = useState('');
   const [newEmpEmail, setNewEmpEmail] = useState('');
+  const [newEmpPassword, setNewEmpPassword] = useState('');
   const [newEmpCompanyId, setNewEmpCompanyId] = useState('');
   const [newEmpIsAdmin, setNewEmpIsAdmin] = useState(false);
 
@@ -337,6 +338,7 @@ export default function App() {
         role: newEmpRole, 
         cpf: maskCPF(newEmpCpf), 
         email: newEmpEmail, 
+        password: newEmpPassword,
         company_id: parseInt(newEmpCompanyId), 
         is_admin: newEmpIsAdmin ? 1 : 0 
       });
@@ -345,6 +347,7 @@ export default function App() {
       setNewEmpRole('');
       setNewEmpCpf('');
       setNewEmpEmail('');
+      setNewEmpPassword('');
       setNewEmpCompanyId('');
       setNewEmpIsAdmin(false);
       setEditingEmployee(null);
@@ -384,6 +387,7 @@ export default function App() {
     setNewEmpRole(emp.role);
     setNewEmpCpf(emp.cpf);
     setNewEmpEmail(emp.email);
+    setNewEmpPassword(emp.password || '');
     setNewEmpCompanyId(emp.company_id.toString());
     setNewEmpIsAdmin(emp.is_admin === 1);
     setShowEmployeeModal(true);
@@ -661,121 +665,156 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans flex flex-col md:flex-row">
-      {/* Mobile Header */}
-      <header className="md:hidden bg-zinc-900 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-40">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 flex items-center justify-center">
-            <img 
-              src={user?.company_logo || "/logo.png"} 
-              alt="Psicodonto Logo" 
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                e.currentTarget.src = "https://picsum.photos/seed/psicodonto/100/100";
-              }}
-            />
-          </div>
-          <span className="font-bold text-lg tracking-tight">Psicodonto</span>
-        </div>
-        <button onClick={handleLogout} className="text-red-400 p-2">
-          <LogOut size={20} />
-        </button>
-      </header>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans flex flex-col">
+      {/* Top Navigation Bar */}
+      <nav className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 md:h-20">
+            <div className="flex items-center gap-8">
+              {/* Logo */}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
+                  <img 
+                    src={user?.company_logo || "/logo.png"} 
+                    alt="Psicodonto Logo" 
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://picsum.photos/seed/psicodonto/100/100";
+                    }}
+                  />
+                </div>
+                <span className="font-bold text-xl tracking-tight hidden sm:block">Psicodonto</span>
+              </div>
 
-      {/* Sidebar (Desktop) / Bottom Nav (Mobile) */}
-      <aside className="fixed bottom-0 left-0 right-0 z-40 md:relative md:flex md:w-64 bg-zinc-900 border-t md:border-t-0 md:border-r border-zinc-800 flex flex-row md:flex-col">
-        <div className="hidden md:flex p-6 border-b border-zinc-800 items-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center">
-            <img 
-              src={user?.company_logo || "/logo.png"} 
-              alt="Psicodonto Logo" 
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                e.currentTarget.src = "https://picsum.photos/seed/psicodonto/100/100";
-              }}
-            />
-          </div>
-          <span className="font-bold text-xl tracking-tight">Psicodonto</span>
-        </div>
+              {/* Desktop Menu */}
+              <div className="hidden md:flex items-center gap-1">
+                <button 
+                  onClick={() => setView('dashboard')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'dashboard' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                >
+                  <Clock size={18} />
+                  Ponto
+                </button>
 
-        <nav className="flex-1 flex md:flex-col p-2 md:p-4 gap-1 md:gap-2 overflow-x-auto md:overflow-x-visible no-scrollbar">
-          <button 
-            onClick={() => setView('dashboard')}
-            className={`flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl transition-all ${view === 'dashboard' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 md:text-zinc-400 hover:bg-zinc-800'}`}
-          >
-            <Clock size={20} />
-            <span className="text-[10px] md:text-sm font-medium">Ponto</span>
-          </button>
-
-          {user?.is_admin === 1 && (
-            <>
-              <div className="hidden md:block px-4 py-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mt-4">Administração</div>
-              <button 
-                onClick={() => setView('companies')}
-                className={`flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl transition-all ${view === 'companies' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 md:text-zinc-400 hover:bg-zinc-800'}`}
-              >
-                <Building2 size={20} />
-                <span className="text-[10px] md:text-sm font-medium">Empresas</span>
-              </button>
-              <button 
-                onClick={() => setView('employees')}
-                className={`flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl transition-all ${view === 'employees' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 md:text-zinc-400 hover:bg-zinc-800'}`}
-              >
-                <Users size={20} />
-                <span className="text-[10px] md:text-sm font-medium">Equipe</span>
-              </button>
-              <button 
-                onClick={() => {
-                  clearFilters();
-                  setView('reports');
-                }}
-                className={`flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl transition-all ${view === 'reports' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 md:text-zinc-400 hover:bg-zinc-800'}`}
-              >
-                <FileText size={20} />
-                <span className="text-[10px] md:text-sm font-medium">Relatórios</span>
-              </button>
-              <button 
-                onClick={() => setView('settings')}
-                className={`flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl transition-all ${view === 'settings' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 md:text-zinc-400 hover:bg-zinc-800'}`}
-              >
-                <Settings size={20} />
-                <span className="text-[10px] md:text-sm font-medium">Configurações</span>
-              </button>
-            </>
-          )}
-
-          <button 
-            onClick={() => setView('records')}
-            className={`flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-3 rounded-xl transition-all ${view === 'records' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 md:text-zinc-400 hover:bg-zinc-800'}`}
-          >
-            <Clock size={20} />
-            <span className="text-[10px] md:text-sm font-medium">Histórico</span>
-          </button>
-        </nav>
-
-        {/* Desktop User Info */}
-        <div className="hidden md:block p-4 border-t border-zinc-800">
-          <div className="flex items-center gap-3 px-4 py-3 mb-2">
-            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-700">
-              <UserIcon size={20} className="text-zinc-400" />
+                {user?.is_admin === 1 && (
+                  <>
+                    <button 
+                      onClick={() => setView('companies')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'companies' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                      <Building2 size={18} />
+                      Empresas
+                    </button>
+                    <button 
+                      onClick={() => setView('employees')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'employees' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                      <Users size={18} />
+                      Equipe
+                    </button>
+                    <button 
+                      onClick={() => {
+                        clearFilters();
+                        setView('reports');
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'reports' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                      <FileText size={18} />
+                      Relatórios
+                    </button>
+                    <button 
+                      onClick={() => setView('settings')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'settings' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                      <Settings size={18} />
+                      Configurações
+                    </button>
+                  </>
+                )}
+                <button 
+                  onClick={() => setView('records')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'records' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                >
+                  <Clock size={18} />
+                  Histórico
+                </button>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate">{user?.name}</p>
-              <p className="text-[10px] text-zinc-500 truncate uppercase tracking-wider">{user?.role}</p>
+
+            <div className="flex items-center gap-4">
+              <div className="hidden sm:flex flex-col items-end mr-2">
+                <p className="text-sm font-bold text-white">{user?.name}</p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">{user?.role}</p>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-zinc-500 hover:text-red-500 transition-all bg-zinc-800 rounded-xl border border-zinc-700"
+                title="Sair"
+              >
+                <LogOut size={20} />
+              </button>
             </div>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
-          >
-            <LogOut size={20} />
-            <span className="font-medium">Sair</span>
-          </button>
         </div>
-      </aside>
+
+        {/* Mobile Menu (Horizontal Scroll) */}
+        <div className="md:hidden border-t border-zinc-800 overflow-x-auto no-scrollbar">
+          <div className="flex p-2 gap-1 min-w-max">
+            <button 
+              onClick={() => setView('dashboard')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium ${view === 'dashboard' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500'}`}
+            >
+              <Clock size={16} />
+              Ponto
+            </button>
+            {user?.is_admin === 1 && (
+              <>
+                <button 
+                  onClick={() => setView('companies')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium ${view === 'companies' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500'}`}
+                >
+                  <Building2 size={16} />
+                  Empresas
+                </button>
+                <button 
+                  onClick={() => setView('employees')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium ${view === 'employees' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500'}`}
+                >
+                  <Users size={16} />
+                  Equipe
+                </button>
+                <button 
+                  onClick={() => {
+                    clearFilters();
+                    setView('reports');
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium ${view === 'reports' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500'}`}
+                >
+                  <FileText size={16} />
+                  Relatórios
+                </button>
+                <button 
+                  onClick={() => setView('settings')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium ${view === 'settings' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500'}`}
+                >
+                  <Settings size={16} />
+                  Configurações
+                </button>
+              </>
+            )}
+            <button 
+              onClick={() => setView('records')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium ${view === 'records' ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500'}`}
+            >
+              <Clock size={16} />
+              Histórico
+            </button>
+          </div>
+        </div>
+      </nav>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-10 pb-24 md:pb-10">
+      <main className="flex-1 p-4 md:p-10 max-w-7xl mx-auto w-full">
         <AnimatePresence mode="wait">
           {view === 'dashboard' && (
             <motion.div 
@@ -1547,6 +1586,16 @@ export default function App() {
                       placeholder="email@empresa.com"
                       className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                       required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Senha (Opcional)</label>
+                    <input 
+                      type="password"
+                      value={newEmpPassword}
+                      onChange={(e) => setNewEmpPassword(e.target.value)}
+                      placeholder="Padrão: CPF (apenas números)"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                     />
                   </div>
                 </div>

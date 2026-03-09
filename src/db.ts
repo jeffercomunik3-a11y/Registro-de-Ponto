@@ -80,6 +80,10 @@ export const db = {
       if (index !== -1) employees[index] = { ...employees[index], ...employee };
     } else {
       employee.id = Date.now();
+      // Set default password as the CPF (only numbers) if not provided
+      if (!employee.password) {
+        employee.password = employee.cpf.replace(/\D/g, '');
+      }
       employees.push(employee);
     }
     setStorage(STORAGE_KEYS.EMPLOYEES, employees);
@@ -95,11 +99,11 @@ export const db = {
     const employees = db.getEmployees();
     const user = employees.find((e: any) => e.cpf === cpf);
     if (user) {
-      // In a real local app, we might not need password if it's personal, 
-      // but let's keep it for consistency with the previous UI
-      if (user.is_admin && user.password !== password) {
+      // Check password for everyone
+      if (user.password && user.password !== password) {
         throw new Error('Senha incorreta');
       }
+      // If user has no password set yet (legacy), allow login but we should probably set one
       return user;
     }
     throw new Error('Usuário não encontrado');
