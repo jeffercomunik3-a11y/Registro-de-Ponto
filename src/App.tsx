@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { db } from './db';
 
 // Types
 interface Company {
@@ -170,20 +171,17 @@ export default function App() {
   }, [message]);
 
   const fetchCompanies = async () => {
-    const res = await fetch('/api/companies');
-    const data = await res.json();
+    const data = db.getCompanies();
     setCompanies(data);
   };
 
   const fetchEmployees = async () => {
-    const res = await fetch('/api/employees');
-    const data = await res.json();
+    const data = db.getEmployees();
     setEmployees(data);
   };
 
   const fetchSettings = async () => {
-    const res = await fetch('/api/settings');
-    const data = await res.json();
+    const data = db.getSettings();
     setSettings(data);
     if (data.login_logo) setLoginLogoUrl(data.login_logo);
   };
@@ -191,15 +189,9 @@ export default function App() {
   const updateSetting = async (key: string, value: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value })
-      });
-      if (res.ok) {
-        fetchSettings();
-        setMessage({ type: 'success', text: 'Configuração atualizada!' });
-      }
+      const data = db.updateSetting(key, value);
+      setSettings(data);
+      setMessage({ type: 'success', text: 'Configuração atualizada!' });
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao atualizar configuração' });
     } finally {
@@ -209,15 +201,13 @@ export default function App() {
 
   const fetchRecords = async () => {
     if (!user) return;
-    const res = await fetch(`/api/time-records/${user.id}`);
-    const data = await res.json();
+    const data = db.getRecords(user.id);
     setRecords(data);
   };
 
   const fetchClockStatus = async () => {
     if (!user) return;
-    const res = await fetch(`/api/time-records/${user.id}/status`);
-    const data = await res.json();
+    const data = db.getClockStatus(user.id);
     setClockStatus(data);
   };
 
@@ -226,20 +216,11 @@ export default function App() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cpf: loginCpf, password: loginPassword })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data);
-        setView('dashboard');
-      } else {
-        setMessage({ type: 'error', text: data.error });
-      }
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Erro ao conectar ao servidor' });
+      const data = db.login(loginCpf, loginPassword);
+      setUser(data);
+      setView('dashboard');
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
     } finally {
       setLoading(false);
     }
@@ -249,18 +230,12 @@ export default function App() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/time-records/clock-in', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: user.id })
-      });
-      if (res.ok) {
-        fetchClockStatus();
-        fetchRecords();
-        setMessage({ type: 'success', text: 'Entrada registrada com sucesso!' });
-      }
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Erro ao registrar ponto' });
+      db.clockIn(user.id);
+      fetchClockStatus();
+      fetchRecords();
+      setMessage({ type: 'success', text: 'Entrada registrada com sucesso!' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Erro ao registrar ponto' });
     } finally {
       setLoading(false);
     }
@@ -270,18 +245,12 @@ export default function App() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/time-records/clock-out', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: user.id })
-      });
-      if (res.ok) {
-        fetchClockStatus();
-        fetchRecords();
-        setMessage({ type: 'success', text: 'Saída registrada com sucesso!' });
-      }
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Erro ao registrar ponto' });
+      db.clockOut(user.id);
+      fetchClockStatus();
+      fetchRecords();
+      setMessage({ type: 'success', text: 'Saída registrada com sucesso!' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Erro ao registrar ponto' });
     } finally {
       setLoading(false);
     }
@@ -299,30 +268,20 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const url = editingCompany ? `/api/companies/${editingCompany.id}` : '/api/companies';
-      const method = editingCompany ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: newCompanyName, 
-          cnpj: maskCNPJ(newCompanyCnpj),
-          logo_url: newCompanyLogo 
-        })
+      db.saveCompany({ 
+        id: editingCompany?.id,
+        name: newCompanyName, 
+        cnpj: maskCNPJ(newCompanyCnpj),
+        logo_url: newCompanyLogo 
       });
-      if (res.ok) {
-        setNewCompanyName('');
-        setNewCompanyCnpj('');
-        setNewCompanyLogo('');
-        setEditingCompany(null);
-        setShowCompanyModal(false);
-        fetchCompanies();
-        setMessage({ type: 'success', text: editingCompany ? 'Empresa atualizada!' : 'Empresa cadastrada!' });
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Erro ao salvar empresa' });
-      }
+      
+      setNewCompanyName('');
+      setNewCompanyCnpj('');
+      setNewCompanyLogo('');
+      setEditingCompany(null);
+      setShowCompanyModal(false);
+      fetchCompanies();
+      setMessage({ type: 'success', text: editingCompany ? 'Empresa atualizada!' : 'Empresa cadastrada!' });
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao salvar empresa' });
     } finally {
@@ -333,15 +292,10 @@ export default function App() {
   const handleDeleteCompany = async (id: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/companies/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await fetchCompanies();
-        setMessage({ type: 'success', text: 'Empresa excluída!' });
-        setShowDeleteConfirm(false);
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Erro ao excluir empresa' });
-      }
+      db.deleteCompany(id);
+      await fetchCompanies();
+      setMessage({ type: 'success', text: 'Empresa excluída!' });
+      setShowDeleteConfirm(false);
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao excluir empresa' });
     } finally {
@@ -377,36 +331,26 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const url = editingEmployee ? `/api/employees/${editingEmployee.id}` : '/api/employees';
-      const method = editingEmployee ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: newEmpName, 
-          role: newEmpRole, 
-          cpf: maskCPF(newEmpCpf), 
-          email: newEmpEmail, 
-          company_id: parseInt(newEmpCompanyId), 
-          is_admin: newEmpIsAdmin 
-        })
+      db.saveEmployee({ 
+        id: editingEmployee?.id,
+        name: newEmpName, 
+        role: newEmpRole, 
+        cpf: maskCPF(newEmpCpf), 
+        email: newEmpEmail, 
+        company_id: parseInt(newEmpCompanyId), 
+        is_admin: newEmpIsAdmin ? 1 : 0 
       });
-      if (res.ok) {
-        setNewEmpName('');
-        setNewEmpRole('');
-        setNewEmpCpf('');
-        setNewEmpEmail('');
-        setNewEmpCompanyId('');
-        setNewEmpIsAdmin(false);
-        setEditingEmployee(null);
-        setShowEmployeeModal(false);
-        fetchEmployees();
-        setMessage({ type: 'success', text: editingEmployee ? 'Funcionário atualizado!' : 'Funcionário cadastrado!' });
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Erro ao salvar funcionário' });
-      }
+      
+      setNewEmpName('');
+      setNewEmpRole('');
+      setNewEmpCpf('');
+      setNewEmpEmail('');
+      setNewEmpCompanyId('');
+      setNewEmpIsAdmin(false);
+      setEditingEmployee(null);
+      setShowEmployeeModal(false);
+      fetchEmployees();
+      setMessage({ type: 'success', text: editingEmployee ? 'Funcionário atualizado!' : 'Funcionário cadastrado!' });
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao salvar funcionário' });
     } finally {
@@ -417,17 +361,11 @@ export default function App() {
   const handleDeleteEmployee = async (id: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await fetchEmployees();
-        // Also refresh records if we are viewing them
-        if (view === 'reports') await fetchReportData();
-        setMessage({ type: 'success', text: 'Funcionário excluído!' });
-        setShowDeleteConfirm(false);
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Erro ao excluir funcionário' });
-      }
+      db.deleteEmployee(id);
+      await fetchEmployees();
+      if (view === 'reports') await fetchReportData();
+      setMessage({ type: 'success', text: 'Funcionário excluído!' });
+      setShowDeleteConfirm(false);
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao excluir funcionário' });
     } finally {
@@ -454,16 +392,11 @@ export default function App() {
   const handleDeleteRecord = async (id: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/time-records/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await fetchRecords();
-        if (view === 'reports') await fetchReportData();
-        setMessage({ type: 'success', text: 'Registro excluído!' });
-        setShowDeleteConfirm(false);
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Erro ao excluir registro' });
-      }
+      db.deleteRecord(id);
+      await fetchRecords();
+      if (view === 'reports') await fetchReportData();
+      setMessage({ type: 'success', text: 'Registro excluído!' });
+      setShowDeleteConfirm(false);
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao excluir registro' });
     } finally {
@@ -498,20 +431,15 @@ export default function App() {
     if (!editingRecord) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/time-records/${editingRecord.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          entry_time: new Date(editEntryTime).toISOString(),
-          exit_time: editExitTime ? new Date(editExitTime).toISOString() : null
-        })
+      db.saveRecord({
+        ...editingRecord,
+        entry_time: new Date(editEntryTime).toISOString(),
+        exit_time: editExitTime ? new Date(editExitTime).toISOString() : null
       });
-      if (res.ok) {
-        setShowRecordModal(false);
-        fetchRecords();
-        if (view === 'reports') fetchReportData();
-        setMessage({ type: 'success', text: 'Registro atualizado!' });
-      }
+      setShowRecordModal(false);
+      fetchRecords();
+      if (view === 'reports') fetchReportData();
+      setMessage({ type: 'success', text: 'Registro atualizado!' });
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao atualizar registro' });
     } finally {
@@ -523,27 +451,7 @@ export default function App() {
     setLoading(true);
     setMessage(null);
     try {
-      const params = new URLSearchParams();
-      if (reportFilters.companyId) params.append('companyId', reportFilters.companyId);
-      if (reportFilters.employeeId) params.append('employeeId', reportFilters.employeeId);
-      
-      if (reportFilters.startDate) {
-        params.append('startDate', `${reportFilters.startDate}T00:00:00.000Z`);
-      }
-      
-      if (reportFilters.endDate) {
-        params.append('endDate', `${reportFilters.endDate}T23:59:59.999Z`);
-      }
-
-      console.log('Fetching reports with params:', params.toString());
-      const res = await fetch(`/api/reports?${params.toString()}`);
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erro ao buscar dados do relatório');
-      }
-      
-      const data = await res.json();
+      const data = db.getReportData(reportFilters);
       setReportRecords(data);
       
       if (data.length === 0) {
@@ -552,8 +460,7 @@ export default function App() {
         setMessage({ type: 'success', text: `${data.length} registros encontrados.` });
       }
     } catch (err: any) {
-      console.error('Error fetching report data:', err);
-      setMessage({ type: 'error', text: err.message || 'Erro ao carregar relatório. Tente novamente.' });
+      setMessage({ type: 'error', text: err.message || 'Erro ao carregar relatório.' });
       setReportRecords([]);
     } finally {
       setLoading(false);
