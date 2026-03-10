@@ -484,117 +484,157 @@ export default function App() {
 
   const exportToExcel = () => {
     if (reportRecords.length === 0) return;
-    const ws = XLSX.utils.json_to_sheet(reportRecords.map(r => ({
-      'Funcionário': r.employee_name,
-      'Cargo': r.role,
-      'Empresa': r.company_name,
-      'Entrada': formatDateTime(r.entry_time),
-      'Saída': formatDateTime(r.exit_time)
-    })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Relatório de Ponto");
-    XLSX.writeFile(wb, "relatorio_ponto.xlsx");
+    setLoading(true);
+    try {
+      const ws = XLSX.utils.json_to_sheet(reportRecords.map(r => ({
+        'Funcionário': r.employee_name,
+        'Cargo': r.role,
+        'Empresa': r.company_name,
+        'Entrada': formatDateTime(r.entry_time),
+        'Saída': formatDateTime(r.exit_time)
+      })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Relatório de Ponto");
+      
+      // Use a more robust download method for mobile
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'relatorio_ponto.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setMessage({ type: 'success', text: 'Relatório Excel gerado!' });
+    } catch (err) {
+      console.error('Excel Export Error:', err);
+      setMessage({ type: 'error', text: 'Erro ao gerar Excel. Tente novamente.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const exportToPDF = () => {
     if (reportRecords.length === 0) return;
+    setLoading(true);
     
-    const doc = new jsPDF();
-    
-    // Group records by employee_id
-    const grouped = reportRecords.reduce((acc: any, record) => {
-      const empId = record.employee_id;
-      if (!acc[empId]) {
-        acc[empId] = {
-          employee_name: record.employee_name,
-          role: record.role,
-          company_name: record.company_name,
-          company_cnpj: record.company_cnpj,
-          records: []
-        };
-      }
-      acc[empId].records.push(record);
-      return acc;
-    }, {});
-
-    const employeeIds = Object.keys(grouped);
-    
-    employeeIds.forEach((empId, index) => {
-      if (index > 0) doc.addPage();
+    try {
+      const doc = new jsPDF();
       
-      const empData = grouped[empId];
-      const records = empData.records;
-      
-      // Header
-      doc.setFontSize(16);
-      doc.text("FOLHA INDIVIDUAL DE PONTO", 105, 15, { align: "center" });
-      
-      doc.setFontSize(10);
-      doc.text(`Funcionário: ${empData.employee_name}`, 15, 25);
-      doc.text(`Cargo: ${empData.role}`, 15, 32);
-      doc.text(`CNPJ: ${empData.company_cnpj}`, 140, 25);
-      doc.text(`Empresa: ${empData.company_name}`, 140, 32);
-      
-      let start = reportFilters.startDate ? new Date(reportFilters.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : '';
-      let end = reportFilters.endDate ? new Date(reportFilters.endDate + 'T00:00:00').toLocaleDateString('pt-BR') : '';
-      
-      if (!start && records.length > 0) {
-        start = new Date(records[0].entry_time).toLocaleDateString('pt-BR');
-      }
-      if (!end && records.length > 0) {
-        end = new Date(records[records.length - 1].entry_time).toLocaleDateString('pt-BR');
-      }
-      
-      doc.text(`Período: ${start || '---'} A ${end || '---'}`, 15, 40);
-
-      // Signature line below company info
-      doc.line(140, 48, 195, 48);
-      doc.setFontSize(7);
-      doc.text("Assinatura do Funcionário", 140, 52);
-
-      const tableData = records.map((r: any) => {
-        const date = new Date(r.entry_time);
-        const day = date.getDate().toString().padStart(2, '0');
-        const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' }).toUpperCase();
-        const entry = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const exit = r.exit_time ? new Date(r.exit_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-        
-        return [
-          `${day} - ${weekday}`,
-          entry,
-          exit,
-          "", // Second entry placeholder
-          ""  // Second exit placeholder
-        ];
-      });
-
-      autoTable(doc, {
-        startY: 60,
-        head: [['DIA/SEMANA', 'ENTRADA', 'SAÍDA', 'ENTRADA', 'SAÍDA']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
-        styles: { fontSize: 8, cellPadding: 2 },
-        columnStyles: {
-          0: { cellWidth: 40 },
-          1: { halign: 'center' },
-          2: { halign: 'center' },
-          3: { halign: 'center' },
-          4: { halign: 'center' }
+      // Group records by employee_id
+      const grouped = reportRecords.reduce((acc: any, record) => {
+        const empId = record.employee_id;
+        if (!acc[empId]) {
+          acc[empId] = {
+            employee_name: record.employee_name,
+            role: record.role,
+            company_name: record.company_name,
+            company_cnpj: record.company_cnpj,
+            records: []
+          };
         }
+        acc[empId].records.push(record);
+        return acc;
+      }, {});
+
+      const employeeIds = Object.keys(grouped);
+      
+      employeeIds.forEach((empId, index) => {
+        if (index > 0) doc.addPage();
+        
+        const empData = grouped[empId];
+        const records = empData.records;
+        
+        // Header
+        doc.setFontSize(16);
+        doc.text("FOLHA INDIVIDUAL DE PONTO", 105, 15, { align: "center" });
+        
+        doc.setFontSize(10);
+        doc.text(`Funcionário: ${empData.employee_name}`, 15, 25);
+        doc.text(`Cargo: ${empData.role}`, 15, 32);
+        doc.text(`CNPJ: ${empData.company_cnpj || '---'}`, 140, 25);
+        doc.text(`Empresa: ${empData.company_name}`, 140, 32);
+        
+        let start = reportFilters.startDate ? new Date(reportFilters.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+        let end = reportFilters.endDate ? new Date(reportFilters.endDate + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+        
+        if (!start && records.length > 0) {
+          start = new Date(records[0].entry_time).toLocaleDateString('pt-BR');
+        }
+        if (!end && records.length > 0) {
+          end = new Date(records[records.length - 1].entry_time).toLocaleDateString('pt-BR');
+        }
+        
+        doc.text(`Período: ${start || '---'} A ${end || '---'}`, 15, 40);
+
+        // Signature line
+        doc.line(140, 48, 195, 48);
+        doc.setFontSize(7);
+        doc.text("Assinatura do Funcionário", 140, 52);
+
+        const tableData = records.map((r: any) => {
+          const date = new Date(r.entry_time);
+          const day = date.getDate().toString().padStart(2, '0');
+          const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' }).toUpperCase();
+          const entry = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          const exit = r.exit_time ? new Date(r.exit_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+          
+          return [
+            `${day} - ${weekday}`,
+            entry,
+            exit,
+            "", // Second entry placeholder
+            ""  // Second exit placeholder
+          ];
+        });
+
+        autoTable(doc, {
+          startY: 60,
+          head: [['DIA/SEMANA', 'ENTRADA', 'SAÍDA', 'ENTRADA', 'SAÍDA']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { halign: 'center' },
+            2: { halign: 'center' },
+            3: { halign: 'center' },
+            4: { halign: 'center' }
+          }
+        });
+
+        const finalY = (doc as any).lastAutoTable?.finalY || 150;
+        doc.setFontSize(8);
+        const footerText = "De conformidade com a Portaria MTB 3.626 de 13/11/1991 art. 13, este cartão substitui, para todos os efeitos legais, o quadro de horário de trabalho, inclusive o de menores";
+        doc.text(footerText, 105, finalY + 10, { align: "center", maxWidth: 180 });
       });
 
-      const finalY = (doc as any).lastAutoTable.finalY || 150;
-      doc.setFontSize(8);
-      const footerText = "De conformidade com a Portaria MTB 3.626 de 13/11/1991 art. 13, este cartão substitui, para todos os efeitos legais, o quadro de horário de trabalho, inclusive o de menores";
-      doc.text(footerText, 105, finalY + 10, { align: "center", maxWidth: 180 });
-    });
+      const fileName = employeeIds.length === 1 
+        ? `folha_ponto_${grouped[employeeIds[0]].employee_name.replace(/\s+/g, '_')}.pdf`
+        : `folha_ponto_completa.pdf`;
+      
+      // Use a more robust download method for mobile
+      const pdfBlob = doc.output('blob');
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-    const fileName = employeeIds.length === 1 
-      ? `folha_ponto_${grouped[employeeIds[0]].employee_name}.pdf`
-      : `folha_ponto_completa.pdf`;
-    
-    doc.save(fileName);
+      setMessage({ type: 'success', text: 'Relatório PDF gerado!' });
+    } catch (err) {
+      console.error('PDF Export Error:', err);
+      setMessage({ type: 'error', text: 'Erro ao gerar PDF. Tente novamente.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (view === 'login') {
@@ -1308,19 +1348,19 @@ export default function App() {
                   </button>
                   <button 
                     onClick={exportToExcel}
-                    disabled={reportRecords.length === 0}
+                    disabled={reportRecords.length === 0 || loading}
                     className="md:w-auto bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-3 rounded-xl transition-all border border-zinc-700 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <FileSpreadsheet size={20} />
-                    Excel
+                    {loading ? 'Gerando...' : 'Excel'}
                   </button>
                   <button 
                     onClick={exportToPDF}
-                    disabled={reportRecords.length === 0}
+                    disabled={reportRecords.length === 0 || loading}
                     className="md:w-auto bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-3 rounded-xl transition-all border border-zinc-700 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Download size={20} />
-                    PDF
+                    {loading ? 'Gerando...' : 'PDF'}
                   </button>
                 </div>
               </div>
